@@ -1,54 +1,62 @@
-fn chunks(input: &str) -> &[[u8; 4]] {
-    unsafe { std::slice::from_raw_parts(input.as_ptr().cast(), input.len() / 4) }
+use std::fs;
+
+pub fn run() {
+    let input = fs::read_to_string("inputs/day02.txt").unwrap();
+    let total_score: u32 = input
+        .lines()
+        .map(|line| {
+            let opponent_shape = parse_shape(line.as_bytes()[0]);
+            let own_shape = parse_shape(line.as_bytes()[2]);
+            own_shape as u32 + get_round_outcome_score(opponent_shape, own_shape)
+        })
+        .sum();
+    println!("{}", total_score);
+
+    let total_score_2: u32 = input
+        .lines()
+        .map(|line| {
+            let opponent_shape = parse_shape(line.as_bytes()[0]);
+            let round_result = match line.as_bytes()[2] {
+                b'X' => LOSE,
+                b'Y' => DRAW,
+                b'Z' => WIN,
+                _ => unreachable!(),
+            };
+            let own_shape = [Rock, Paper, Scissors]
+                .into_iter()
+                .find(|&shape| get_round_outcome_score(opponent_shape, shape) == round_result)
+                .unwrap();
+            own_shape as u32 + round_result
+        })
+        .sum();
+    println!("{}", total_score_2);
 }
 
-const ROCK: u8 = b'A';
-const PAPER: u8 = b'B';
-const SCISSORS: u8 = b'C';
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum Shape {
+    Rock = 1,
+    Paper = 2,
+    Scissors = 3,
+}
+use Shape::*;
 
-const LOSE: u8 = b'X';
-const DRAW: u8 = b'Y';
-const WIN: u8 = b'Z';
+const LOSE: u32 = 0;
+const DRAW: u32 = 3;
+const WIN: u32 = 6;
 
-pub(crate) fn run() {
-    let input = include_str!("../inputs/day02.txt");
-
-    let mut part_1 = 0u32;
-    let mut part_2 = 0u32;
-
-    for &[theirs, _, ours, _] in chunks(input) {
-        part_1 += match (theirs, ours - (b'X' - b'A')) {
-            (ROCK, ROCK) => 3,
-            (ROCK, PAPER) => 6,
-            (ROCK, SCISSORS) => 0,
-            (PAPER, ROCK) => 0,
-            (PAPER, PAPER) => 3,
-            (PAPER, SCISSORS) => 6,
-            (SCISSORS, ROCK) => 6,
-            (SCISSORS, PAPER) => 0,
-            (SCISSORS, SCISSORS) => 3,
-            _ => unreachable!(),
-        };
-
-        part_1 += (ours - (b'X' - 1)) as u32;
-
-        let required = match (theirs, ours) {
-            (ROCK, LOSE) => SCISSORS,
-            (ROCK, DRAW) => ROCK,
-            (ROCK, WIN) => PAPER,
-            (PAPER, LOSE) => ROCK,
-            (PAPER, DRAW) => PAPER,
-            (PAPER, WIN) => SCISSORS,
-            (SCISSORS, LOSE) => PAPER,
-            (SCISSORS, DRAW) => SCISSORS,
-            (SCISSORS, WIN) => ROCK,
-            _ => unreachable!(),
-        };
-
-        part_2 += (required - (ROCK - 1)) as u32;
-        part_2 += (ours - LOSE) as u32 * 3;
+fn get_round_outcome_score(opponent_shape: Shape, own_shape: Shape) -> u32 {
+    match (opponent_shape, own_shape) {
+        (Rock, Paper) | (Paper, Scissors) | (Scissors, Rock) => WIN,
+        (a, b) if a == b => DRAW,
+        _ => LOSE,
     }
+}
 
-    println!("Part 1: {part_1}");
-    println!("Part 2: {part_2}");
+fn parse_shape(char: u8) -> Shape {
+    match char {
+        b'A' | b'X' => Rock,
+        b'B' | b'Y' => Paper,
+        b'C' | b'Z' => Scissors,
+        _ => unreachable!(),
+    }
 }
